@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stockholm Metrosu: Canlı Dijital Gölge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#17243a; --muted:#5d6b7e; --line:#d3d9e1;
+  --sign:#1f4e9c; --sign-ink:#ffffff; --amber:#b77d00; --alert:#c8102e; --ok:#2e7d4f;
+  --map:#f8f9fb; --station:#ffffff; --station-stroke:#17243a; --label-halo:#f8f9fb;
+  --green:#179c43; --red:#d71d24; --blue:#0072bc;
+  color-scheme:light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1726; --surface:#16233a; --ink:#e6ecf3; --muted:#93a4ba; --line:#2a3b57;
+    --sign:#6f9eea; --sign-ink:#0e1726; --amber:#ffc93c; --alert:#ff5c6c; --ok:#5fcf8f;
+    --map:#111c2e; --station:#111c2e; --station-stroke:#e6ecf3; --label-halo:#111c2e;
+    --green:#3cc46a; --red:#ff4d55; --blue:#3fa2ff;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1726; --surface:#16233a; --ink:#e6ecf3; --muted:#93a4ba; --line:#2a3b57;
+  --sign:#6f9eea; --sign-ink:#0e1726; --amber:#ffc93c; --alert:#ff5c6c; --ok:#5fcf8f;
+  --map:#111c2e; --station:#111c2e; --station-stroke:#e6ecf3; --label-halo:#111c2e;
+  --green:#3cc46a; --red:#ff4d55; --blue:#3fa2ff;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.4;display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 18px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+h1{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:clamp(22px,3vw,30px);line-height:1;margin:0}
+h1 .plate{display:inline-block;background:var(--sign);color:var(--sign-ink);padding:3px 10px 5px;border-radius:4px;margin-right:8px}
+.status{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:3px 11px;color:var(--ink);font-weight:600}
+.pill i{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.pill.live i{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 1.6s infinite}
+.pill.demo i{background:var(--amber)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,125,79,.5)}70%{box-shadow:0 0 0 7px rgba(46,125,79,0)}100%{box-shadow:0 0 0 0 rgba(46,125,79,0)}}
+@media (prefers-reduced-motion: reduce){.pill.live i{animation:none}}
+main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 350px;min-height:0}
+#mapWrap{position:relative;background:var(--map);min-height:0;overflow:hidden;touch-action:none}
+#map{width:100%;height:100%;display:block;cursor:grab}
+#map:active{cursor:grabbing}
+.mapbtns{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;flex-wrap:wrap}
+aside{border-left:1px solid var(--line);background:var(--surface);overflow:auto;padding:14px 16px 24px}
+h2{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:19px;margin:16px 0 8px}
+h2:first-child{margin-top:0}
+button,input{font:inherit;color:var(--ink)}
+button{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer}
+button.on{background:var(--sign);color:var(--sign-ink);border-color:var(--sign)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.msg{font-size:14px;background:var(--bg);border-left:4px solid var(--amber);padding:8px 10px;border-radius:0 6px 6px 0;margin:8px 0}
+.msg.ok{border-color:var(--ok)}
+.lines{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.lc{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:14px}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;border-radius:4px;color:#fff;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:15px;padding:0 5px}
+.lc b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:19px}
+.lc span.d{color:var(--muted);font-size:12px;margin-left:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td{padding:5px 3px;border-top:1px solid var(--line);vertical-align:middle}
+td.t{text-align:right;white-space:nowrap;font-weight:600}
+.late{color:var(--alert)}
+.small{font-size:13px;color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:600}
+details summary{cursor:pointer;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:18px;font-weight:600;margin:16px 0 6px}
+svg text{font-family:"Barlow","Arial",sans-serif}
+.st{cursor:pointer}
+.st circle{fill:var(--station);stroke:var(--station-stroke)}
+.st.sel circle{stroke:var(--amber)}
+.st.poll circle{fill:var(--amber)}
+.st text{fill:var(--ink);paint-order:stroke;stroke:var(--label-halo);stroke-width:.12px;stroke-linejoin:round}
+.train text{fill:#fff;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;pointer-events:none}
+@media (max-width:860px){
+  body{display:block;height:auto}
+  main{display:block}
+  #mapWrap{height:62vh}
+  aside{border-left:0;border-top:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="plate">Stockholm Tunnelbana</span>Canlı dijital gölge</h1>
+  <div class="status">
+    <span class="pill" id="modePill"><i></i><span id="modeTxt">Bağlanıyor…</span></span>
+    <span id="clock">Stockholm saati –</span>
+  </div>
+</header>
+<main>
+  <div id="mapWrap">
+    <svg id="map" role="img" aria-label="Stockholm metro hatları ve trenlerin tahmini anlık konumları"></svg>
+    <div class="mapbtns">
+      <button id="vSchem" class="on">Şema</button>
+      <button id="vGeo" title="İstasyonların gerçek koordinatları (canlı veriyle)">Gerçek konumlar</button>
+      <button id="vFit">Tümünü göster</button>
+    </div>
+  </div>
+  <aside>
+    <div id="msg" class="msg">SL sunucusuna bağlanılıyor…</div>
+
+    <h2>Hatlardaki trenler</h2>
+    <div class="lines" id="lineStats"></div>
+
+    <h2 id="stTitle">İstasyon seçin</h2>
+    <div id="stBody" class="small">Haritada bir istasyona dokunun; oradan kalkacak trenler burada görünür.</div>
+
+    <h2>Veri akışı</h2>
+    <dl class="kv">
+      <dt>Kaynak</dt><dd id="kSrc">–</dd>
+      <dt>İstek sayısı</dt><dd id="kReq">0</dd>
+      <dt>Son güncelleme</dt><dd id="kLast">–</dd>
+      <dt>Tam tur süresi</dt><dd id="kCycle">–</dd>
+      <dt>Takip edilen sefer</dt><dd id="kJ">0</dd>
+    </dl>
+    <p class="small">Sarı yanan istasyon o an sorgulanıyor. Trenlerin konumu, istasyonlardaki "sonraki tren" tahminlerinden hesaplanır; gerçek GPS konumu değildir.</p>
+
+    <details>
+      <summary>Veri kaynağı ayarı</summary>
+      <p class="small">Doğrudan SL adresi veya kendi aracı sunucunuzun adresi (ör. Cloudflare Worker). Sonunda <code>/v1</code> olmadan yazın.</p>
+      <input type="text" id="apiBase" spellcheck="false" aria-label="Veri kaynağı adresi">
+      <p style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0"><button id="apiSave">Bağlan</button><button id="demoBtn">Demo moduna geç</button></p>
+    </details>
+  </aside>
+</main>
+
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const SVGNS='http://www.w3.org/2000/svg';
+
+// ================= Ağ tanımı =================
+const GREEN_TRUNK_N=['Hässelby strand','Hässelby gård','Johannelund','Vällingby','Råcksta','Blackeberg','Islandstorget','Ängbyplan','Åkeshov','Brommaplan','Abrahamsberg','Stora mossen','Alvik','Kristineberg','Thorildsplan','Fridhemsplan','S:t Eriksplan','Odenplan','Rådmansgatan','Hötorget','T-Centralen','Gamla stan','Slussen','Medborgarplatsen','Skanstull','Gullmarsplan'];
+const LINES={
+  '17':{group:'green',stations:GREEN_TRUNK_N.slice(GREEN_TRUNK_N.indexOf('Åkeshov')).concat(['Skärmarbrink','Hammarbyhöjden','Björkhagen','Kärrtorp','Bagarmossen','Skarpnäck'])},
+  '18':{group:'green',stations:GREEN_TRUNK_N.slice(GREEN_TRUNK_N.indexOf('Alvik')).concat(['Skärmarbrink','Blåsut','Sandsborg','Skogskyrkogården','Tallkrogen','Gubbängen','Hökarängen','Farsta','Farsta strand'])},
+  '19':{group:'green',stations:GREEN_TRUNK_N.concat(['Globen','Enskede gård','Sockenplan','Svedmyra','Stureby','Bandhagen','Högdalen','Rågsved','Hagsätra'])},
+  '13':{group:'red',stations:['Norsborg','Hallunda','Alby','Fittja','Masmo','Vårby gård','Vårberg','Skärholmen','Sätra','Bredäng','Mälarhöjden','Axelsberg','Örnsberg','Aspudden','Liljeholmen','Hornstull','Zinkensdamm','Mariatorget','Slussen','Gamla stan','T-Centralen','Östermalmstorg','Karlaplan','Gärdet','Ropsten']},
+  '14':{group:'red',stations:['Fruängen','Västertorp','Hägerstensåsen','Telefonplan','Midsommarkransen','Liljeholmen','Hornstull','Zinkensdamm','Mariatorget','Slussen','Gamla stan','T-Centralen','Östermalmstorg','Stadion','Tekniska högskolan','Universitetet','Bergshamra','Danderyds sjukhus','Mörby centrum']},
+  '10':{group:'blue',stations:['Kungsträdgården','T-Centralen','Rådhuset','Fridhemsplan','Stadshagen','Västra skogen','Huvudsta','Solna strand','Sundbybergs centrum','Duvbo','Rissne','Rinkeby','Tensta','Hjulsta']},
+  '11':{group:'blue',stations:['Kungsträdgården','T-Centralen','Rådhuset','Fridhemsplan','Stadshagen','Västra skogen','Solna centrum','Näckrosen','Hallonbergen','Kista','Husby','Akalla']}
+};
+const LINE_ORDER=['10','11','13','14','17','18','19'];
+// Şematik koordinatlar (birim ızgara, T-Centralen = 0,0)
+const P={};
+const put=(n,x,y)=>P[n]={x,y};
+put('T-Centralen',0,0);put('Hötorget',0,-1);put('Rådmansgatan',0,-2);put('Odenplan',-1,-2.6);put('S:t Eriksplan',-2,-2.2);put('Fridhemsplan',-3,-1.4);
+['Thorildsplan','Kristineberg','Alvik','Stora mossen','Abrahamsberg','Brommaplan','Åkeshov'].forEach((n,i)=>put(n,-4-i,-1.4));
+['Ängbyplan','Islandstorget','Blackeberg','Råcksta','Vällingby','Johannelund','Hässelby gård','Hässelby strand'].forEach((n,i)=>put(n,-11-i,-1.9-i*0.5));
+put('Gamla stan',0,1);put('Slussen',0,2);put('Medborgarplatsen',0.6,3);put('Skanstull',0.6,4);put('Gullmarsplan',0.6,5);put('Skärmarbrink',1.6,5.6);
+['Hammarbyhöjden','Björkhagen','Kärrtorp','Bagarmossen','Skarpnäck'].forEach((n,i)=>put(n,2.6+i,5.6));
+['Blåsut','Sandsborg','Skogskyrkogården','Tallkrogen','Gubbängen','Hökarängen','Farsta','Farsta strand'].forEach((n,i)=>put(n,1.6,6.6+i));
+put('Globen',0.1,6);['Enskede gård','Sockenplan','Svedmyra','Stureby','Bandhagen','Högdalen','Rågsved','Hagsätra'].forEach((n,i)=>put(n,-0.3,7+i));
+put('Mariatorget',-1,2.4);put('Zinkensdamm',-2,2.4);put('Hornstull',-3,2.4);put('Liljeholmen',-4,2.8);
+['Aspudden','Örnsberg','Axelsberg','Mälarhöjden','Bredäng','Sätra','Skärholmen','Vårberg','Vårby gård','Masmo','Fittja','Alby','Hallunda','Norsborg'].forEach((n,i)=>put(n,-5-i,3.3+i*0.5));
+['Midsommarkransen','Telefonplan','Hägerstensåsen','Västertorp','Fruängen'].forEach((n,i)=>put(n,-4,3.8+i));
+put('Östermalmstorg',1.6,-1);put('Karlaplan',2.8,-1.4);put('Gärdet',3.8,-1.8);put('Ropsten',4.8,-2.2);
+['Stadion','Tekniska högskolan','Universitetet','Bergshamra','Danderyds sjukhus','Mörby centrum'].forEach((n,i)=>put(n,1.8,-2.2-i));
+put('Kungsträdgården',1.3,0.35);put('Rådhuset',-1.5,-0.7);put('Stadshagen',-3.6,-2.5);put('Västra skogen',-4.2,-3.4);
+['Huvudsta','Solna strand','Sundbybergs centrum','Duvbo','Rissne','Rinkeby','Tensta','Hjulsta'].forEach((n,i)=>put(n,-5.2-i,-3.9-i*0.5));
+['Solna centrum','Näckrosen','Hallonbergen','Kista','Husby','Akalla'].forEach((n,i)=>put(n,-4.2,-4.4-i));
+const SHARED=new Set(['T-Centralen','Gamla stan','Slussen']);
+const GROUP_OFF={green:-0.13,red:0.13,blue:0};
+
+const STATIONS=[...new Set(LINE_ORDER.flatMap(l=>LINES[l].stations))];
+const stGroups={}; for(const l of LINE_ORDER) for(const s of LINES[l].stations){(stGroups[s]=stGroups[s]||new Set()).add(LINES[l].group);}
+const norm=s=>(s||'').toLowerCase().normalize('NFC').replace(/\s*\(.*?\)\s*/g,'').replace(/\s+t-bana$/,'').replace(/\s+/g,' ').trim();
+const lineIndex={}; for(const l of LINE_ORDER){lineIndex[l]=new Map(LINES[l].stations.map((s,i)=>[norm(s),i]));}
+
+// ================= Görünüm geometrisi =================
+let GEO=null, geoMode=false, blend=0;  // blend: 0 şema, 1 coğrafya
+function basePos(name){
+  const s=P[name]; if(!GEO||!GEO[name]||blend===0) return s;
+  const g=GEO[name]; return {x:s.x+(g.x-s.x)*blend,y:s.y+(g.y-s.y)*blend};
+}
+function linePos(l,name){const b=basePos(name);const g=LINES[l].group;if(SHARED.has(name)&&blend<1)return {x:b.x+GROUP_OFF[g]*(1-blend),y:b.y};return b;}
+function trainXY(l,idx,dir){
+  const st=LINES[l].stations, n=st.length; idx=Math.max(0,Math.min(n-1,idx));
+  const i=Math.min(n-2,Math.floor(idx)), f=idx-i;
+  const a=linePos(l,st[i]), b=linePos(l,st[i+1]);
+  const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+  const off=0.24*dir; // yöne göre hattın iki yanına
+  return {x:a.x+dx*f+(-dy/len)*off, y:a.y+dy*f+(dx/len)*off};
+}
+
+// ================= SVG çizimi =================
+const svg=$('map'); const gLines=document.createElementNS(SVGNS,'g'), gSt=document.createElementNS(SVGNS,'g'), gTr=document.createElementNS(SVGNS,'g');
+svg.append(gLines,gSt,gTr);
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const GCOL=g=>css('--'+g);
+const linePaths={}, stEls={};
+for(const l of LINE_ORDER){const p=document.createElementNS(SVGNS,'polyline');p.setAttribute('fill','none');p.setAttribute('stroke-width','0.2');p.setAttribute('stroke-linejoin','round');p.setAttribute('stroke-linecap','round');gLines.appendChild(p);linePaths[l]=p;}
+for(const s of STATIONS){
+  const g=document.createElementNS(SVGNS,'g');g.setAttribute('class','st');g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',s+' istasyonu');
+  const c=document.createElementNS(SVGNS,'circle');const inter=stGroups[s].size>1||['Fridhemsplan','Liljeholmen','Gullmarsplan','Alvik','Västra skogen','Östermalmstorg','Skärmarbrink'].includes(s);
+  c.setAttribute('r',inter?'0.2':'0.12');c.setAttribute('stroke-width',inter?'0.07':'0.05');
+  const t=document.createElementNS(SVGNS,'text');t.textContent=s;t.setAttribute('font-size',inter?'0.36':'0.3');t.setAttribute('font-weight',inter?'600':'400');
+  g.append(c,t);gSt.appendChild(g);stEls[s]={g,c,t,inter};
+  const pick=()=>selectStation(s); g.addEventListener('click',pick); g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
+}
+// etiket yönü: komşulara göre
+function labelLayout(s){
+  let dx=0,dy=0,c=0;for(const l of LINE_ORDER){const st=LINES[l].stations;const i=st.indexOf(s);if(i<0)continue;for(const j of [i-1,i+1]){if(j<0||j>=st.length)continue;const a=basePos(s),b=basePos(st[j]);dx+=Math.abs(b.x-a.x);dy+=Math.abs(b.y-a.y);c++;}}
+  return dx>dy*1.2?'rot':'right';
+}
+function drawStatic(){
+  for(const l of LINE_ORDER){const pts=LINES[l].stations.map(s=>{const p=linePos(l,s);return p.x.toFixed(3)+','+p.y.toFixed(3);}).join(' ');linePaths[l].setAttribute('points',pts);linePaths[l].setAttribute('stroke',GCOL(LINES[l].group));}
+  for(const s of STATIONS){const p=basePos(s), e=stEls[s];e.c.setAttribute('cx',p.x);e.c.setAttribute('cy',p.y);
+    if(labelLayout(s)==='rot'){e.t.setAttribute('x',p.x+0.18);e.t.setAttribute('y',p.y-0.18);e.t.setAttribute('transform',`rotate(-40 ${p.x+0.18} ${p.y-0.18})`);}
+    else{e.t.setAttribute('x',p.x+0.3);e.t.setAttribute('y',p.y+0.11);e.t.removeAttribute('transform');}}
+}
+// görünüm (pan/zoom)
+let view={x:-20,y:-11,w:28,h:26};
+function bounds(){let a=1e9,b=1e9,c=-1e9,d=-1e9;for(const s of STATIONS){const p=basePos(s);a=Math.min(a,p.x);b=Math.min(b,p.y);c=Math.max(c,p.x);d=Math.max(d,p.y);}return {x:a-1,y:b-1,w:c-a+5,h:d-b+2};}
+function fitView(){const r=svg.getBoundingClientRect();const b=bounds();const ar=r.width/r.height||1;let w=b.w,h=b.h;if(w/h>ar)h=w/ar;else w=h*ar;view={x:b.x+b.w/2-w/2,y:b.y+b.h/2-h/2,w,h};applyView();}
+function applyView(){svg.setAttribute('viewBox',`${view.x} ${view.y} ${view.w} ${view.h}`);}
+const ptrs=new Map();let pinch=0;
+svg.addEventListener('pointerdown',e=>{if(e.target.closest('.st'))return;svg.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===2){const[a,b]=[...ptrs.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);}});
+svg.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);const r=svg.getBoundingClientRect();const k=view.w/r.width;
+  if(ptrs.size===1){view.x-=(e.clientX-p.x)*k;view.y-=(e.clientY-p.y)*k;applyView();}
+  p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===2){const[a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch)zoomAt((a.x+b.x)/2,(a.y+b.y)/2,pinch/d);pinch=d;}});
+const up=e=>{ptrs.delete(e.pointerId);pinch=0;};svg.addEventListener('pointerup',up);svg.addEventListener('pointercancel',up);
+function zoomAt(cx,cy,f){const r=svg.getBoundingClientRect();const mx=view.x+(cx-r.left)/r.width*view.w,my=view.y+(cy-r.top)/r.height*view.h;const nw=Math.max(4,Math.min(80,view.w*f));const nf=nw/view.w;view.x=mx-(mx-view.x)*nf;view.y=my-(my-view.y)*nf;view.w=nw;view.h*=nf;applyView();}
+svg.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,1+e.deltaY*0.0015);},{passive:false});
+window.addEventListener('resize',()=>{const r=svg.getBoundingClientRect();const nh=view.w*r.height/r.width;view.y+= (view.h-nh)/2; view.h=nh; applyView();});
+
+// ================= Zaman (Stockholm) =================
+const fmtParts=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Stockholm',hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+function sthlmOffsetMin(ms){const o={};for(const p of fmtParts.formatToParts(new Date(ms)))o[p.type]=p.value;const asUTC=Date.UTC(+o.year,+o.month-1,+o.day,+o.hour%24,+o.minute,+o.second);return Math.round((asUTC-ms)/60000);}
+function parseSL(s){if(!s)return NaN;if(/[zZ]|[+-]\d\d:?\d\d$/.test(s))return Date.parse(s);const m=s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+):?(\d+)?/);if(!m)return NaN;const naive=Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0));return naive-sthlmOffsetMin(naive)*60000;}
+const hm=ms=>new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(ms));
+
+// ================= Canlı veri =================
+const DEFAULT_API='https://transport.integration.sl.se';
+const isLocal=/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname)||location.port==='8000';
+const qApi=new URLSearchParams(location.search).get('api');
+const cfgApi=(window.SL_API_BASE||'').trim();
+let apiBase=(()=>{let saved=null;try{saved=localStorage.getItem('slApiBase');}catch(e){}
+  return (qApi||saved||cfgApi||(isLocal?location.origin:DEFAULT_API)).replace(/\/+$/,'');})();
+$('apiBase').value=apiBase;
+let mode='connecting', siteOf={}, reqCount=0, lastOk=0, cycleStart=0, cycleDur=0, pollTimer=null, priority=[], queue=[], failStreak=0;
+const journeys=new Map();   // id -> {line,dir,obs:Map(idx->{t,sched}),seen}
+const stationDeps={};       // station -> {at, list}
+const dirLearn={};          // line|code -> dir
+function setMode(m,txt){mode=m;const p=$('modePill');p.className='pill '+(m==='live'?'live':m==='demo'?'demo':'');$('modeTxt').textContent=txt;}
+function msg(html,ok){const e=$('msg');e.innerHTML=html;e.classList.toggle('ok',!!ok);}
+async function getJSON(path,timeout=9000){
+  const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
+  try{reqCount++;const r=await fetch(apiBase.replace(/\/+$/,'')+path,{signal:ctl.signal,headers:{'Accept':'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}
+  finally{clearTimeout(t);}
+}
+async function loadSites(){
+  try{const c=JSON.parse(localStorage.getItem('slSites')||'null');if(c&&Date.now()-c.at<7*864e5&&c.base===apiBase)return c.sites;}catch(e){}
+  const raw=await getJSON('/v1/sites',20000);
+  const arr=Array.isArray(raw)?raw:(raw.sites||[]);
+  const slim=arr.map(s=>({id:s.id,name:s.name,lat:s.lat,lon:s.lon}));
+  try{localStorage.setItem('slSites',JSON.stringify({at:Date.now(),base:apiBase,sites:slim}));}catch(e){}
+  return slim;
+}
+function matchSites(sites){
+  const by={};for(const s of sites){const k=norm(s.name);(by[k]=by[k]||[]).push(s);}
+  const out={},geo={};let miss=[];
+  for(const st of STATIONS){const c=by[norm(st)]||[];const pick=c.find(s=>s.id>=9000&&s.id<=9999)||c[0];if(pick){out[st]=pick.id;if(pick.lat&&pick.lon)geo[st]={lat:pick.lat,lon:pick.lon};}else miss.push(st);}
+  // coğrafi koordinatları şema ölçeğine dönüştür
+  const ref=geo['T-Centralen'];
+  if(ref){GEO={};for(const st in geo){GEO[st]={x:(geo[st].lon-ref.lon)*Math.cos(ref.lat*Math.PI/180)*80,y:-(geo[st].lat-ref.lat)*80};}for(const st of STATIONS)if(!GEO[st])GEO[st]=P[st];}
+  return {out,miss};
+}
+function lineOf(dep){const l=dep.line||{};const mode=(l.transport_mode||dep.transport_mode||'').toUpperCase();if(mode&&mode!=='METRO')return null;const d=String(l.designation||dep.line_designation||'').replace(/\D+$/,'');return LINES[d]?d:null;}
+function ingest(station,data){
+  const deps=(data&&data.departures)||[];const now=Date.now();const list=[];
+  for(const d of deps){
+    const l=lineOf(d);if(!l)continue;
+    const idx=lineIndex[l].get(norm(station));if(idx===undefined)continue;
+    const t=parseSL(d.expected||d.scheduled), sc=parseSL(d.scheduled);if(!isFinite(t))continue;
+    let dir=0;const di=lineIndex[l].get(norm(d.destination));
+    if(di!==undefined&&di!==idx)dir=Math.sign(di-idx);
+    const key=l+'|'+d.direction_code;
+    if(dir)dirLearn[key]=dir;else dir=dirLearn[key]||0;
+    list.push({line:l,dest:d.destination,t,sc,display:d.display,dir});
+    if(!dir||t-now>25*60000)continue;
+    const jid=(d.journey&&d.journey.id)||(l+'-'+d.destination+'-'+d.scheduled);
+    let j=journeys.get(jid);if(!j){j={line:l,dir,obs:new Map(),seen:now};journeys.set(jid,j);}
+    j.obs.set(idx,{t,sc});j.seen=now;j.dir=dir;
+  }
+  list.sort((a,b)=>a.t-b.t);
+  stationDeps[station]={at:now,list};
+}
+async function pollOne(){
+  if(mode!=='live')return;
+  if(!queue.length){queue=STATIONS.filter(s=>siteOf[s]);if(cycleStart)cycleDur=Date.now()-cycleStart;cycleStart=Date.now();}
+  const st=priority.shift()||queue.shift();
+  const e=stEls[st];e.g.classList.add('poll');
+  try{const data=await getJSON(`/v1/sites/${siteOf[st]}/departures`);ingest(st,data);lastOk=Date.now();failStreak=0;if(st===selected)renderStation();}
+  catch(err){failStreak++;if(failStreak>=6){stopLive();startDemo('Canlı veri akışı kesildi ('+err.message+'). Demo moduna geçildi; bağlantı düzelince <b>Bağlan</b> düğmesine basın.');return;}}
+  finally{setTimeout(()=>e.g.classList.remove('poll'),500);}
+  pollTimer=setTimeout(pollOne,800);
+}
+function stopLive(){clearTimeout(pollTimer);pollTimer=null;}
+async function startLive(){
+  stopLive();journeys.clear();setMode('connecting','Bağlanıyor…');$('kSrc').textContent=apiBase.replace(/^https?:\/\//,'');
+  msg('SL istasyon listesi alınıyor…');
+  try{
+    const sites=await loadSites();const {out,miss}=matchSites(sites);siteOf=out;
+    if(Object.keys(out).length<20)throw new Error('istasyon eşleşmedi');
+    setMode('live','Canlı veri');failStreak=0;queue=[];cycleStart=0;
+    msg(`Canlı veriye bağlandı. ${Object.keys(out).length} istasyon sırayla sorgulanıyor.`+(miss.length?` <span class="small">Eşleşmeyen: ${miss.join(', ')}</span>`:''),true);
+    $('vGeo').disabled=!GEO;
+    pollOne();
+  }catch(err){
+    const onClaude=/claude\.ai|claudeusercontent/.test(location.hostname);
+    startDemo(onClaude?'Bu sayfa Claude üzerinde açıldığı için dış sunuculara bağlanamaz; şu an <b>simüle veri</b> gösteriliyor. Canlı veri için kurulum dosyalarıyla kendi bilgisayarınızda veya sunucunuzda çalıştırın.'
+      :`SL sunucusuna bağlanılamadı (${err.message}). Tarayıcı doğrudan bağlantıya izin vermiyor olabilir: aracı sunucuyu (sl_proxy.py veya Cloudflare Worker) kullanın. Şimdilik <b>simüle veri</b> gösteriliyor.`);
+  }
+}
+// tahmini konum
+const MIN_PER_STOP=1.9;
+function liveTrains(now){
+  const out=[];
+  for(const [id,j] of journeys){
+    if(now-j.seen>4*60000){journeys.delete(id);continue;}
+    let next=null,prev=null;
+    for(const [idx,o] of j.obs){if(o.t>=now-15000){if(!next||o.t<next.o.t)next={idx,o};}else{if(!prev||o.t>prev.o.t)prev={idx,o};}}
+    if(!next)continue;
+    let p;
+    const mins=(next.o.t-now)/60000;
+    if(prev&&Math.abs(next.idx-prev.idx)<=4&&Math.sign(next.idx-prev.idx)===j.dir&&next.o.t>prev.o.t){p=prev.idx+(next.idx-prev.idx)*Math.min(1,Math.max(0,(now-prev.o.t)/(next.o.t-prev.o.t)));}
+    else p=next.idx-j.dir*Math.max(0,mins)/MIN_PER_STOP;
+    const n=LINES[j.line].stations.length;
+    if(p<-0.05||p>n-0.95)continue;
+    const delay=isFinite(next.o.sc)?Math.round((next.o.t-next.o.sc)/60000):0;
+    out.push({id,line:j.line,dir:j.dir,p,delay});
+  }
+  return out;
+}
+// ================= Demo =================
+let demoReason='';
+function startDemo(reason){stopLive();setMode('demo','Simüle veri');msg(reason);demoReason=reason;$('kSrc').textContent='Simülasyon';$('vGeo').disabled=!GEO;}
+function hash(n){n=Math.imul(n^61,0x45d9f3b);n^=n>>>16;return (n>>>0)/4294967296;}
+function demoTrains(now){
+  const out=[];const tmin=now/60000;
+  LINE_ORDER.forEach((l,li)=>{const n=LINES[l].stations.length,H=10,span=(n-1)*MIN_PER_STOP;
+    for(const dir of [1,-1]){const off=li*1.7+(dir>0?0:4.3);
+      for(let k=Math.floor((tmin-span-off)/H);k<=Math.floor((tmin-off)/H);k++){
+        const delay=hash(k*31+li*7+(dir>0?1:2))<0.15?Math.round(1+hash(k+li)*4):0;
+        const start=k*H+off+delay;const raw=(tmin-start)/MIN_PER_STOP;if(raw<0||raw>n-1)continue;
+        const fl=Math.floor(raw),fr=raw-fl,mv=fr<0.25?0:(fr-0.25)/0.75,s=mv*mv*(3-2*mv);
+        const q=Math.min(n-1,fl+s);const p=dir>0?q:n-1-q;
+        out.push({id:'d'+l+dir+k,line:l,dir,p,delay});}}});
+  return out;
+}
+function demoDeps(st){
+  const now=Date.now();const list=[];
+  for(const t of demoTrains(now)){const idx=lineIndex[t.line].get(norm(st));if(idx===undefined)continue;const ahead=(idx-t.p)*t.dir;if(ahead<0)continue;
+    const st2=LINES[t.line].stations;list.push({line:t.line,dest:t.dir>0?st2[st2.length-1]:st2[0],t:now+ahead*MIN_PER_STOP*60000,sc:now+ahead*MIN_PER_STOP*60000-t.delay*60000,dir:t.dir});}
+  return list.sort((a,b)=>a.t-b.t).slice(0,10);
+}
+
+// ================= Trenler ve paneller =================
+const trEls=new Map();
+function drawTrains(list){
+  const seen=new Set();
+  for(const t of list){
+    seen.add(t.id);let e=trEls.get(t.id);
+    const target=trainXY(t.line,t.p,t.dir);
+    if(!e){const g=document.createElementNS(SVGNS,'g');g.setAttribute('class','train');const r=document.createElementNS(SVGNS,'rect');r.setAttribute('width','0.62');r.setAttribute('height','0.36');r.setAttribute('x','-0.31');r.setAttribute('y','-0.18');r.setAttribute('rx','0.08');r.setAttribute('stroke-width','0.06');
+      const tx=document.createElementNS(SVGNS,'text');tx.setAttribute('font-size','0.3');tx.setAttribute('text-anchor','middle');tx.setAttribute('y','0.1');tx.textContent=t.line;g.append(r,tx);gTr.appendChild(g);e={g,r,x:target.x,y:target.y};trEls.set(t.id,e);}
+    e.x+=(target.x-e.x)*0.15;e.y+=(target.y-e.y)*0.15;
+    e.g.setAttribute('transform',`translate(${e.x.toFixed(3)} ${e.y.toFixed(3)})`);
+    e.r.setAttribute('fill',GCOL(LINES[t.line].group));e.r.setAttribute('stroke',t.delay>=2?css('--alert'):'none');
+  }
+  for(const [id,e] of trEls) if(!seen.has(id)){e.g.remove();trEls.delete(id);}
+}
+function renderLineStats(list){
+  $('lineStats').innerHTML=LINE_ORDER.map(l=>{const ts=list.filter(t=>t.line===l);const late=ts.filter(t=>t.delay>=2).length;
+    return `<div class="lc"><span class="badge" style="background:${GCOL(LINES[l].group)}">${l}</span><b>${ts.length}</b><span class="d">${late?late+' gecikmeli':'zamanında'}</span></div>`;}).join('');
+}
+let selected=null;
+function selectStation(s){
+  if(selected)stEls[selected].g.classList.remove('sel');selected=s;stEls[s].g.classList.add('sel');
+  if(mode==='live'&&siteOf[s]){priority=[s];}
+  renderStation();
+}
+function renderStation(){
+  if(!selected)return;$('stTitle').textContent=selected;
+  let list,at;
+  if(mode==='live'){const d=stationDeps[selected];if(!d){$('stBody').innerHTML='<span class="small">Veri alınıyor…</span>';return;}list=d.list;at=d.at;}
+  else{list=demoDeps(selected);at=Date.now();}
+  const now=Date.now();
+  const rows=list.filter(x=>x.t>now-30000).slice(0,9).map(x=>{const m=Math.max(0,Math.round((x.t-now)/60000));const dl=isFinite(x.sc)?Math.round((x.t-x.sc)/60000):0;
+    return `<tr><td><span class="badge" style="background:${GCOL(LINES[x.line].group)}">${x.line}</span></td><td>${x.dest||''}${dl>=2?` <span class="late small">+${dl} dk</span>`:''}</td><td class="t">${m===0?'Şimdi':m+' dk'}</td></tr>`;}).join('');
+  $('stBody').innerHTML=rows?`<table>${rows}</table><p class="small">${mode==='live'?'Veri '+hm(at)+' itibarıyla':'Simüle veri'}</p>`:'<span class="small">Yakında kalkacak metro bulunamadı.</span>';
+}
+// ================= Kontroller =================
+$('apiSave').onclick=()=>{apiBase=$('apiBase').value.trim().replace(/\/+$/,'')||DEFAULT_API;try{localStorage.setItem('slApiBase',apiBase);}catch(e){}startLive();};
+$('demoBtn').onclick=()=>startDemo('Demo modu: trenler tarifeye benzer bir düzenle simüle ediliyor.');
+$('vSchem').onclick=()=>{geoMode=false;$('vSchem').classList.add('on');$('vGeo').classList.remove('on');};
+$('vGeo').onclick=()=>{if(!GEO)return;geoMode=true;$('vGeo').classList.add('on');$('vSchem').classList.remove('on');};
+$('vFit').onclick=fitView;
+$('vGeo').disabled=true;
+
+// ================= Döngü =================
+let lastPanel=0, lastBlend=-1;
+function frame(now){
+  const target=geoMode?1:0; blend+=(target-blend)*0.08; if(Math.abs(target-blend)<0.002)blend=target;
+  if(blend!==lastBlend){drawStatic();lastBlend=blend;}
+  const t=Date.now();
+  const list=mode==='live'?liveTrains(t):mode==='demo'?demoTrains(t):[];
+  drawTrains(list);
+  if(now-lastPanel>1000){lastPanel=now;
+    $('clock').textContent='Stockholm saati '+hm(t);
+    renderLineStats(list);renderStation();
+    $('kReq').textContent=reqCount;$('kLast').textContent=lastOk?hm(lastOk):'–';$('kCycle').textContent=cycleDur?Math.round(cycleDur/1000)+' sn':'–';$('kJ').textContent=mode==='live'?journeys.size:list.length;
+    for(const l of LINE_ORDER)linePaths[l].setAttribute('stroke',GCOL(LINES[l].group));
+  }
+  requestAnimationFrame(frame);
+}
+drawStatic(); fitView(); requestAnimationFrame(frame); selectStation('T-Centralen'); startLive();
+})();
+</script>
+</body>
+</html>
